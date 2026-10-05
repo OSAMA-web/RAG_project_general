@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - APP_PROFILE=${APP_PROFILE:-general}   # e.g. APP_PROFILE=air_india docker compose up
+    volumes:
+      - ./profiles:/app/profiles   # profile configs + their docs folders
+      - ./storage:/app/storage     # per-profile vector index (survives rebuilds)
+
+volumes:
+  ollama_data:

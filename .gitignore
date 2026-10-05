@@ -1,0 +1,12 @@
+.env
+storage/
+uploads/
+logs/
+app_data.db
+eval_results.json
+__pycache__/
+*.pyc
+.pytest_cache/
+# pre-profile index locations (safe to delete)
+chroma_vectorestore_local/
+parent_store.json

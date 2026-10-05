@@ -1,0 +1,15 @@
+{
+  "_comment": "Default, domain-neutral profile. Drop files into ./docs (subfolders become knowledge bases) or upload them in the UI.",
+  "app_name": "Document Assistant",
+  "icon": "📚",
+  "domain_description": "the documents in its knowledge bases",
+  "default_knowledge_base": "Documents",
+  "greeting": "Ask me anything about the documents loaded here — or use 📎 to add your own. I'll remember what we've discussed so you can ask follow-ups, and I'll show you exactly what I based each answer on.",
+  "input_placeholder": "Ask a question about your documents…",
+  "suggested_questions": [
+    "What are the main topics covered in these documents?",
+    "Are any important dates or deadlines mentioned?",
+    "What do the documents say about eligibility or requirements?"
+  ],
+  "enabled_tools": ["weather", "currency"]
+}

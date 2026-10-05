@@ -1,0 +1,16 @@
+{
+  "_comment": "The original Air India assistant, now expressed as a profile. Run with APP_PROFILE=air_india.",
+  "app_name": "Air India Assistant",
+  "icon": "✈",
+  "domain_description": "Air India — its fleet, routes, cabin classes, policies, and history",
+  "default_knowledge_base": "Air India",
+  "greeting": "Ask me anything about Air India — fleet size, routes, cabin classes, history. I'll remember what we've discussed so you can ask follow-ups, and I'll show you exactly what I based each answer on.",
+  "input_placeholder": "Ask about Air India's fleet, routes, or history…",
+  "suggested_questions": [
+    "How many aircraft are in Air India's fleet?",
+    "How many international destinations does Air India fly to?",
+    "When did Air India rejoin the Tata Group?",
+    "What cabin classes does Air India offer?"
+  ],
+  "enabled_tools": ["flight", "weather", "currency"]
+}

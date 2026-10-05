@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Document Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ivory: #FAF5EA;
+    --ivory-deep: #F1E9D8;
+    --surface: #FFFFFF;
+    --ink: #241F1B;
+    --ink-soft: #5B534A;
+    --maroon: #7C1F2C;
+    --maroon-deep: #5C1620;
+    --gold: #C6A15B;
+    --gold-soft: #E4D3AC;
+    --line: rgba(36, 31, 27, 0.14);
+    --font-display: "Fraunces", serif;
+    --font-body: "IBM Plex Sans", sans-serif;
+    --font-mono: "IBM Plex Mono", monospace;
+  }
+
+  :root[data-theme="dark"] {
+    --ivory: #1E1A16;
+    --ivory-deep: #15120F;
+    --surface: #2A241E;
+    --ink: #F0E9DD;
+    --ink-soft: #B8AE9E;
+    --maroon: #E08A97;
+    --maroon-deep: #C96B79;
+    --gold: #D9B872;
+    --gold-soft: #4A3F2C;
+    --line: rgba(240, 233, 221, 0.14);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--ivory);
+    color: var(--ink);
+    font-family: var(--font-body);
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  /* ---------- Shell layout: sidebar + main chat column ---------- */
+  .shell {
+    display: flex;
+    height: 100vh;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--ivory-deep);
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 14px 10px;
+  }
+
+  .sidebar-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 15px;
+  }
+
+  .new-chat-btn {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    background: var(--maroon);
+    color: var(--ivory);
+    border: none;
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  .new-chat-btn:hover { background: var(--maroon-deep); }
+  .new-chat-btn:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; }
+
+  .sidebar-search {
+    margin: 0 10px 8px;
+    padding: 7px 10px;
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .sidebar-search::placeholder { color: var(--ink-soft); }
+  .sidebar-search:focus-visible { outline: 2px solid var(--maroon); outline-offset: 1px; }
+
+  .thread-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .thread-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    border-left: 3px solid transparent;
+  }
+
+  .thread-item:hover { background: rgba(124, 31, 44, 0.06); }
+
+  .thread-item.active {
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: 0 1px 2px rgba(36, 31, 27, 0.08);
+    border-left: 3px solid var(--gold);
+  }
+
+  .thread-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+
+  .thread-actions {
+    display: none;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  .thread-item:hover .thread-actions,
+  .thread-item.active .thread-actions {
+    display: flex;
+  }
+
+  .icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--ink-soft);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 2px 5px;
+    border-radius: 4px;
+  }
+  .icon-btn:hover { color: var(--maroon); background: rgba(124, 31, 44, 0.1); }
+  .icon-btn:focus-visible { outline: 2px solid var(--maroon); outline-offset: 1px; }
+
+  .menu-btn {
+    display: none;
+    font-size: 17px;
+  }
+
+  .export-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 14px 14px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--ink-soft);
+    border-top: 1px dashed var(--line);
+  }
+
+  .export-link {
+    background: transparent;
+    border: none;
+    color: var(--ink-soft);
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 2px 3px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+  }
+  .export-link:hover { color: var(--maroon); }
+
+  .backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(36, 31, 27, 0.35);
+    z-index: 5;
+  }
+
+  @media (max-width: 720px) {
+    .sidebar {
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 10;
+      transform: translateX(-100%);
+      transition: transform 0.2s ease;
+    }
+    .shell.sidebar-open .sidebar { transform: translateX(0); }
+    .shell.sidebar-open .backdrop { display: block; }
+    .menu-btn { display: inline-block; }
+  }
+
+  /* ---------- Main chat column ---------- */
+  .app {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  header { padding: 22px 20px 16px; }
+
+  .brand { display: flex; align-items: center; justify-content: space-between; }
+  .brand-left { display: flex; align-items: center; gap: 10px; }
+
+  .brand-title {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .brand-title .brand-icon { display: inline-block; color: var(--maroon); font-size: 20px; }
+
+  .header-right { display: flex; align-items: center; gap: 12px; }
+
+  .status {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 0 3px var(--gold-soft);
+  }
+
+  .ghost-btn {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: transparent;
+    color: var(--maroon);
+    border: 1px solid var(--maroon);
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .ghost-btn:hover { background: var(--maroon); color: var(--ivory); }
+  .ghost-btn:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; }
+
+  .kb-select {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 5px 8px;
+    cursor: pointer;
+    max-width: 150px;
+  }
+  .kb-select:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; }
+
+  #dark-toggle-btn { font-size: 15px; }
+
+  .perforation { margin-top: 16px; height: 0; border-top: 2px dashed var(--gold); opacity: 0.6; }
+
+  /* ---------- Chat log ---------- */
+  #log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 20px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .row { display: flex; }
+  .row.user { justify-content: flex-end; }
+  .row.assistant { justify-content: flex-start; }
+
+  .bubble { max-width: 84%; padding: 13px 16px; font-size: 15px; line-height: 1.55; }
+
+  .bubble.assistant {
+    background: var(--surface);
+    border-left: 3px solid var(--gold);
+    border-radius: 4px 14px 14px 4px;
+    box-shadow: 0 1px 2px rgba(36, 31, 27, 0.06);
+  }
+
+  .bubble.user { background: var(--maroon); color: var(--ivory); border-radius: 14px 4px 14px 14px; }
+
+  .bubble.error { background: var(--surface); border-left: 3px solid var(--maroon); border-radius: 4px 14px 14px 4px; color: var(--maroon-deep); }
+
+  .typing { display: inline-flex; gap: 4px; align-items: center; padding: 2px 0; }
+  .typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-soft); animation: pulse 1.1s ease-in-out infinite; }
+  .typing span:nth-child(2) { animation-delay: 0.15s; }
+  .typing span:nth-child(3) { animation-delay: 0.3s; }
+
+  @keyframes pulse {
+    0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
+    30% { opacity: 1; transform: translateY(-2px); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .typing span { animation: none; opacity: 0.6; }
+  }
+
+  /* ---------- Markdown rendering ---------- */
+  .markdown-body p { margin: 0 0 10px; }
+  .markdown-body p:last-child { margin-bottom: 0; }
+  .markdown-body ul, .markdown-body ol { margin: 0 0 10px; padding-left: 22px; }
+  .markdown-body li { margin-bottom: 4px; }
+  .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+    font-family: var(--font-display);
+    margin: 14px 0 8px;
+    line-height: 1.3;
+  }
+  .markdown-body h1:first-child, .markdown-body h2:first-child, .markdown-body h3:first-child { margin-top: 0; }
+  .markdown-body h1 { font-size: 19px; }
+  .markdown-body h2 { font-size: 17px; }
+  .markdown-body h3 { font-size: 15px; }
+  .markdown-body code {
+    font-family: var(--font-mono);
+    background: var(--ivory-deep);
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  .markdown-body pre {
+    background: var(--ivory-deep);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    margin: 8px 0;
+  }
+  .markdown-body pre code { background: none; padding: 0; font-size: 13px; line-height: 1.5; }
+  .markdown-body table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 13.5px; }
+  .markdown-body th, .markdown-body td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; }
+  .markdown-body th { background: var(--ivory-deep); font-weight: 600; }
+  .markdown-body a { color: var(--maroon); }
+  .markdown-body blockquote {
+    border-left: 3px solid var(--gold);
+    margin: 8px 0;
+    padding-left: 12px;
+    color: var(--ink-soft);
+  }
+
+  /* ---------- Message actions (Copy) ---------- */
+  .message-actions { margin-top: 8px; display: flex; gap: 8px; }
+  .copy-btn {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+    border-radius: 5px;
+    padding: 3px 8px;
+    cursor: pointer;
+  }
+  .copy-btn:hover { color: var(--maroon); border-color: var(--maroon); }
+
+  /* ---------- Suggested questions ---------- */
+  .suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; max-width: 84%; }
+  .suggestion-chip {
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    background: transparent;
+    border: 1px dashed var(--gold);
+    color: var(--maroon);
+    border-radius: 999px;
+    padding: 6px 13px;
+    cursor: pointer;
+  }
+  .suggestion-chip:hover { background: var(--gold-soft); }
+  .suggestion-chip:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; }
+
+  .sources { margin-top: 10px; }
+
+  .sources summary {
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--maroon);
+    outline: none;
+  }
+  .sources summary:focus-visible { outline: 2px solid var(--maroon); outline-offset: 3px; }
+
+  .stub {
+    margin-top: 8px;
+    border: 1px dashed var(--line);
+    border-radius: 6px;
+    background: var(--ivory-deep);
+    padding: 10px 12px;
+  }
+
+  .stub-item { font-family: var(--font-mono); font-size: 12px; line-height: 1.5; color: var(--ink-soft); padding: 6px 0; }
+  .stub-item:not(:last-child) { border-bottom: 1px dashed var(--line); }
+  .stub-tag { color: var(--maroon); font-weight: 500; margin-right: 6px; }
+
+  /* ---------- Composer ---------- */
+  .composer-wrap { padding: 14px 20px 20px; }
+
+  .composer {
+    display: flex; gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 6px 6px 6px 16px;
+  }
+
+  .composer input {
+    flex: 1; border: none; outline: none;
+    font-family: var(--font-body); font-size: 15px;
+    background: transparent; color: var(--ink);
+  }
+  .composer input::placeholder { color: var(--ink-soft); }
+
+  .composer button {
+    font-family: var(--font-body);
+    font-weight: 500; font-size: 14px;
+    background: var(--maroon); color: var(--ivory);
+    border: none; border-radius: 8px;
+    padding: 10px 16px; cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .composer button:hover:not(:disabled) { background: var(--maroon-deep); }
+  .composer button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .composer button:focus-visible, .composer input:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; }
+
+  .hint { text-align: center; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-soft); margin-top: 8px; letter-spacing: 0.04em; }
+
+  .upload-btn {
+    font-size: 16px;
+    padding: 8px 10px;
+    flex-shrink: 0;
+  }
+
+  .row.system { justify-content: center; }
+
+  .bubble.system {
+    background: var(--ivory-deep);
+    border: 1px dashed var(--gold);
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    max-width: 90%;
+    text-align: center;
+  }
+
+  #log::-webkit-scrollbar, .thread-list::-webkit-scrollbar { width: 6px; }
+  #log::-webkit-scrollbar-thumb, .thread-list::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+
+  /* ---------- Auth overlay ---------- */
+  .auth-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--ivory);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+  }
+
+  .auth-card {
+    width: 100%;
+    max-width: 340px;
+    padding: 28px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(36, 31, 27, 0.08);
+  }
+
+  .auth-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 19px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  .auth-title .brand-icon { color: var(--maroon); display: inline-block; }
+
+  .auth-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+  .auth-tab {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: var(--ivory-deep);
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+    border-radius: 7px;
+    padding: 8px 0;
+    cursor: pointer;
+  }
+  .auth-tab.active { background: var(--maroon); color: var(--ivory); border-color: var(--maroon); }
+
+  #auth-form { display: flex; flex-direction: column; gap: 10px; }
+  #auth-form input {
+    font-family: var(--font-body);
+    font-size: 14px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--ivory);
+    color: var(--ink);
+  }
+  #auth-form input:focus-visible { outline: 2px solid var(--maroon); outline-offset: 1px; }
+  #auth-form button[type="submit"] {
+    font-family: var(--font-body);
+    font-weight: 500;
+    font-size: 14px;
+    background: var(--maroon);
+    color: var(--ivory);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 0;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  #auth-form button[type="submit"]:hover { background: var(--maroon-deep); }
+
+  .auth-error {
+    margin-top: 12px;
+    font-size: 12.5px;
+    color: var(--maroon-deep);
+    min-height: 16px;
+  }
+
+  /* ---------- Feedback buttons ---------- */
+  .feedback-btn { font-size: 13px; padding: 3px 7px; }
+  .feedback-btn.active { color: var(--maroon); border-color: var(--maroon); }
+</style>
+</head>
+<body>
+  <div class="auth-overlay" id="auth-overlay">
+    <div class="auth-card">
+      <div class="auth-title"><span class="brand-icon">📚</span> <span class="brand-name">Document Assistant</span></div>
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" data-mode="login">Log in</button>
+        <button type="button" class="auth-tab" data-mode="register">Register</button>
+      </div>
+      <form id="auth-form">
+        <input type="text" id="auth-username" placeholder="Username" autocomplete="username" required />
+        <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password" required />
+        <button type="submit" id="auth-submit-btn">Log in</button>
+      </form>
+      <div class="auth-error" id="auth-error"></div>
+    </div>
+  </div>
+
+  <div class="shell" id="shell" style="display:none;">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-title">Chats</span>
+        <button id="new-chat-btn" class="new-chat-btn" type="button">+ New</button>
+      </div>
+      <input type="text" id="search-input" class="sidebar-search" placeholder="Search chats..." />
+      <div class="thread-list" id="thread-list"></div>
+      <div class="export-row">
+        Export:
+        <button class="export-link" data-format="txt" type="button">TXT</button>
+        <button class="export-link" data-format="pdf" type="button">PDF</button>
+        <button class="export-link" data-format="docx" type="button">DOCX</button>
+      </div>
+    </aside>
+    <div class="backdrop" id="backdrop"></div>
+
+    <div class="app">
+      <header>
+        <div class="brand">
+          <div class="brand-left">
+            <button id="menu-btn" class="icon-btn menu-btn" type="button" aria-label="Toggle chat list">☰</button>
+            <div class="brand-title"><span class="brand-icon">📚</span> <span class="brand-name">Document Assistant</span></div>
+          </div>
+          <div class="header-right">
+            <button id="dark-toggle-btn" class="icon-btn" type="button" title="Toggle dark mode">🌙</button>
+            <select id="kb-select" class="kb-select" title="Restrict search to a knowledge base"></select>
+            <button id="clear-chat-btn" class="ghost-btn" type="button">Clear chat</button>
+            <button id="logout-btn" class="ghost-btn" type="button">Log out</button>
+            <div class="status"><span class="status-dot"></span> Online</div>
+          </div>
+        </div>
+        <div class="perforation"></div>
+      </header>
+
+      <div id="log" aria-live="polite"></div>
+
+      <div class="composer-wrap">
+        <form class="composer" id="form">
+          <button type="button" id="upload-btn" class="icon-btn upload-btn" title="Upload a document (PDF, DOCX, TXT, MD)">📎</button>
+          <input id="input" type="text" placeholder="Ask a question about your documents…" autocomplete="off" />
+          <button type="submit" id="send-btn">Send</button>
+        </form>
+        <input type="file" id="file-input" accept=".pdf,.docx,.txt,.md" style="display:none" />
+        <div class="hint">Answers are grounded in the loaded documents — expand "Sources" to see what was retrieved</div>
+      </div>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script>
+  const log = document.getElementById('log');
+  const form = document.getElementById('form');
+  const input = document.getElementById('input');
+  const sendBtn = document.getElementById('send-btn');
+  const newChatBtn = document.getElementById('new-chat-btn');
+  const clearChatBtn = document.getElementById('clear-chat-btn');
+  const threadListEl = document.getElementById('thread-list');
+  const menuBtn = document.getElementById('menu-btn');
+  const backdrop = document.getElementById('backdrop');
+  const shell = document.getElementById('shell');
+  const uploadBtn = document.getElementById('upload-btn');
+  const fileInput = document.getElementById('file-input');
+  const kbSelect = document.getElementById('kb-select');
+  const darkToggleBtn = document.getElementById('dark-toggle-btn');
+  const searchInput = document.getElementById('search-input');
+  const logoutBtn = document.getElementById('logout-btn');
+  const authOverlay = document.getElementById('auth-overlay');
+  const authForm = document.getElementById('auth-form');
+  const authUsername = document.getElementById('auth-username');
+  const authPassword = document.getElementById('auth-password');
+  const authError = document.getElementById('auth-error');
+  const authSubmitBtn = document.getElementById('auth-submit-btn');
+  const authTabs = document.querySelectorAll('.auth-tab');
+
+  let currentThreadId = null;
+  let threadsCache = [];
+  let knowledgeBaseNames = [];
+
+  // ---------- App config (branding + text for the active profile) ----------
+  // Nothing domain-specific is hardcoded here: the server's active profile
+  // (profiles/<name>/profile.json) supplies it via the public GET /config.
+  let appConfig = {
+    app_name: 'Document Assistant',
+    icon: '📚',
+    greeting: "Ask me anything about the documents loaded here. I'll remember what we've discussed so you can ask follow-ups, and I'll show you exactly what I based each answer on.",
+    input_placeholder: 'Ask a question about your documents…',
+    suggested_questions: [],
+    supported_extensions: ['.docx', '.md', '.pdf', '.txt'],
+    default_upload_knowledge_base: 'Uploaded Files',
+  };
+
+  function applyAppConfig() {
+    document.title = appConfig.app_name;
+    document.querySelectorAll('.brand-name').forEach((el) => { el.textContent = appConfig.app_name; });
+    document.querySelectorAll('.brand-icon').forEach((el) => { el.textContent = appConfig.icon; });
+    input.placeholder = appConfig.input_placeholder;
+    fileInput.accept = appConfig.supported_extensions.join(',');
+    const kinds = appConfig.supported_extensions.map((ext) => ext.replace('.', '').toUpperCase()).join(', ');
+    uploadBtn.title = `Upload a document (${kinds})`;
+  }
+
+  async function loadAppConfig() {
+    try {
+      const res = await fetch('/config');
+      if (res.ok) appConfig = { ...appConfig, ...(await res.json()) };
+    } catch (err) {
+      // Non-fatal — the neutral defaults above stay in place.
+    }
+    applyAppConfig();
+  }
+  let authToken = localStorage.getItem('authToken');
+  let authMode = 'login';
+
+  marked.setOptions({ breaks: true });
+
+  // ---------- Dark mode ----------
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    darkToggleBtn.textContent = theme === 'dark' ? '☀️' : '🌙';
+  }
+  applyTheme(localStorage.getItem('theme') || 'light');
+  darkToggleBtn.addEventListener('click', () => {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const next = isDark ? 'light' : 'dark';
+    localStorage.setItem('theme', next);
+    applyTheme(next);
+  });
+
+  function scrollToBottom() { log.scrollTop = log.scrollHeight; }
+  function closeSidebarOnMobile() { shell.classList.remove('sidebar-open'); }
+
+  async function loadKnowledgeBases() {
+    const previousValue = kbSelect.value;
+    let names = [];
+    try {
+      names = await api('/knowledge-bases');
+    } catch (err) {
+      return; // non-fatal — dropdown just stays at "All knowledge bases"
+    }
+
+    kbSelect.innerHTML = '';
+    const allOption = document.createElement('option');
+    allOption.value = '';
+    allOption.textContent = 'All knowledge bases';
+    kbSelect.appendChild(allOption);
+
+    knowledgeBaseNames = names;
+    names.forEach((name) => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      kbSelect.appendChild(opt);
+    });
+
+    if (names.includes(previousValue)) {
+      kbSelect.value = previousValue;
+    }
+  }
+
+  menuBtn.addEventListener('click', () => shell.classList.toggle('sidebar-open'));
+  backdrop.addEventListener('click', closeSidebarOnMobile);
+
+  function addSuggestionChips() {
+    if (!appConfig.suggested_questions.length) return;
+    const row = document.createElement('div');
+    row.className = 'row assistant';
+    const wrap = document.createElement('div');
+    wrap.className = 'suggestions';
+    appConfig.suggested_questions.forEach((q) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'suggestion-chip';
+      chip.textContent = q;
+      chip.addEventListener('click', () => {
+        if (!input.disabled) sendQuestion(q);
+      });
+      wrap.appendChild(chip);
+    });
+    row.appendChild(wrap);
+    log.appendChild(row);
+    scrollToBottom();
+  }
+
+  function greet() {
+    addAssistantBubble(appConfig.greeting, null);
+    addSuggestionChips();
+  }
+
+  function addUserBubble(text) {
+    const row = document.createElement('div');
+    row.className = 'row user';
+    row.innerHTML = `<div class="bubble user"></div>`;
+    row.querySelector('.bubble').textContent = text;
+    log.appendChild(row);
+    scrollToBottom();
+  }
+
+  function addTypingBubble() {
+    const row = document.createElement('div');
+    row.className = 'row assistant';
+    row.id = 'typing-row';
+    row.innerHTML = `<div class="bubble assistant"><span class="typing"><span></span><span></span><span></span></span></div>`;
+    log.appendChild(row);
+    scrollToBottom();
+  }
+
+  function removeTypingBubble() {
+    const row = document.getElementById('typing-row');
+    if (row) row.remove();
+  }
+
+  function buildMessageActions(rawText, question) {
+    const actions = document.createElement('div');
+    actions.className = 'message-actions';
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-btn';
+    copyBtn.type = 'button';
+    copyBtn.textContent = 'Copy';
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(rawText);
+        copyBtn.textContent = 'Copied!';
+      } catch (err) {
+        copyBtn.textContent = 'Failed';
+      }
+      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+    });
+    actions.appendChild(copyBtn);
+
+    if (question) {
+      const upBtn = document.createElement('button');
+      upBtn.className = 'copy-btn feedback-btn';
+      upBtn.type = 'button';
+      upBtn.textContent = '👍';
+      upBtn.title = 'Good answer';
+
+      const downBtn = document.createElement('button');
+      downBtn.className = 'copy-btn feedback-btn';
+      downBtn.type = 'button';
+      downBtn.textContent = '👎';
+      downBtn.title = 'Not helpful';
+
+      async function sendFeedback(rating, clickedBtn, otherBtn) {
+        clickedBtn.classList.add('active');
+        otherBtn.classList.remove('active');
+        otherBtn.disabled = true;
+        clickedBtn.disabled = true;
+        try {
+          await api('/feedback', {
+            method: 'POST',
+            body: JSON.stringify({
+              thread_id: currentThreadId,
+              question,
+              answer: rawText,
+              rating,
+            }),
+          });
+        } catch (err) {
+          // Non-fatal — feedback is a nice-to-have, don't interrupt the chat over it.
+        }
+      }
+
+      upBtn.addEventListener('click', () => sendFeedback('up', upBtn, downBtn));
+      downBtn.addEventListener('click', () => sendFeedback('down', downBtn, upBtn));
+
+      actions.appendChild(upBtn);
+      actions.appendChild(downBtn);
+    }
+
+    return actions;
+  }
+
+  function addAssistantBubble(answer, sources, question = null) {
+    const row = document.createElement('div');
+    row.className = 'row assistant';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble assistant';
+
+    const answerEl = document.createElement('div');
+    answerEl.className = 'markdown-body';
+    answerEl.innerHTML = marked.parse(answer);
+    bubble.appendChild(answerEl);
+    bubble.appendChild(buildMessageActions(answer, question));
+
+    if (sources && sources.length > 0) {
+      const details = document.createElement('details');
+      details.className = 'sources';
+      const summary = document.createElement('summary');
+      summary.textContent = `Sources (${sources.length})`;
+      details.appendChild(summary);
+
+      const stub = document.createElement('div');
+      stub.className = 'stub';
+      sources.forEach((src, i) => {
+        const item = document.createElement('div');
+        item.className = 'stub-item';
+        const tag = document.createElement('span');
+        tag.className = 'stub-tag';
+        tag.textContent = `SRC ${String(i + 1).padStart(2, '0')}`;
+        item.appendChild(tag);
+        item.appendChild(document.createTextNode(src.slice(0, 220) + (src.length > 220 ? '…' : '')));
+        stub.appendChild(item);
+      });
+      details.appendChild(stub);
+      bubble.appendChild(details);
+    }
+
+    row.appendChild(bubble);
+    log.appendChild(row);
+    scrollToBottom();
+  }
+
+  function addErrorBubble(message) {
+    const row = document.createElement('div');
+    row.className = 'row assistant';
+    row.innerHTML = `<div class="bubble error"></div>`;
+    row.querySelector('.bubble').textContent = message;
+    log.appendChild(row);
+    scrollToBottom();
+  }
+
+  async function api(path, options = {}) {
+    const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+
+    const res = await fetch(path, { ...options, headers });
+
+    if (res.status === 401) {
+      logout();
+      throw new Error('Session expired — please log in again.');
+    }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || `Request failed (${res.status})`);
+    }
+    return res.json();
+  }
+
+  function renderThreadList(list) {
+    const items = list || threadsCache;
+    threadListEl.innerHTML = '';
+    items.forEach((t) => {
+      const item = document.createElement('div');
+      item.className = 'thread-item' + (t.id === currentThreadId ? ' active' : '');
+
+      const title = document.createElement('span');
+      title.className = 'thread-title';
+      title.textContent = t.title;
+      item.appendChild(title);
+
+      const actions = document.createElement('span');
+      actions.className = 'thread-actions';
+
+      const renameBtn = document.createElement('button');
+      renameBtn.className = 'icon-btn';
+      renameBtn.type = 'button';
+      renameBtn.title = 'Rename chat';
+      renameBtn.textContent = '✎';
+      renameBtn.addEventListener('click', (e) => { e.stopPropagation(); renameThread(t.id, t.title); });
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'icon-btn';
+      deleteBtn.type = 'button';
+      deleteBtn.title = 'Delete chat';
+      deleteBtn.textContent = '✕';
+      deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteThread(t.id); });
+
+      actions.appendChild(renameBtn);
+      actions.appendChild(deleteBtn);
+      item.appendChild(actions);
+
+      item.addEventListener('click', () => selectThread(t.id));
+      threadListEl.appendChild(item);
+    });
+  }
+
+  async function loadThreads() {
+    threadsCache = await api('/threads');
+  }
+
+  async function createThread() {
+    const thread = await api('/threads', { method: 'POST' });
+    threadsCache.unshift(thread);
+    await selectThread(thread.id, true);
+    closeSidebarOnMobile();
+  }
+
+  async function selectThread(threadId, isNew = false) {
+    currentThreadId = threadId;
+    renderThreadList();
+    log.innerHTML = '';
+
+    if (isNew) {
+      greet();
+      return;
+    }
+
+    try {
+      const data = await api(`/threads/${threadId}/messages`);
+      if (data.messages.length === 0) {
+        greet();
+      } else {
+        data.messages.forEach((m) => {
+          addUserBubble(m.question);
+          addAssistantBubble(m.answer, null, m.question); // sources aren't persisted across a thread switch
+        });
+      }
+    } catch (err) {
+      addErrorBubble(`Couldn't load this chat — ${err.message}`);
+    }
+    closeSidebarOnMobile();
+  }
+
+  async function renameThread(threadId, oldTitle) {
+    const newTitle = prompt('Rename chat', oldTitle);
+    if (!newTitle || !newTitle.trim() || newTitle === oldTitle) return;
+    try {
+      const updated = await api(`/threads/${threadId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ title: newTitle.trim() }),
+      });
+      const idx = threadsCache.findIndex((t) => t.id === threadId);
+      if (idx !== -1) threadsCache[idx] = updated;
+      renderThreadList();
+    } catch (err) {
+      alert(`Couldn't rename: ${err.message}`);
+    }
+  }
+
+  async function deleteThread(threadId) {
+    if (!confirm('Delete this chat? This cannot be undone.')) return;
+    try {
+      await api(`/threads/${threadId}`, { method: 'DELETE' });
+      threadsCache = threadsCache.filter((t) => t.id !== threadId);
+
+      if (threadId === currentThreadId) {
+        if (threadsCache.length > 0) {
+          await selectThread(threadsCache[0].id);
+        } else {
+          await createThread();
+        }
+      } else {
+        renderThreadList();
+      }
+    } catch (err) {
+      alert(`Couldn't delete: ${err.message}`);
+    }
+  }
+
+  // ---------- Search previous chats ----------
+  let searchDebounceTimer = null;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(async () => {
+      const q = searchInput.value.trim();
+      if (!q) {
+        renderThreadList();
+        return;
+      }
+      try {
+        const results = await api(`/threads/search?q=${encodeURIComponent(q)}`);
+        renderThreadList(results);
+      } catch (err) {
+        // non-fatal — leave the list as-is
+      }
+    }, 250);
+  });
+
+  // ---------- Export chat ----------
+  document.querySelectorAll('.export-link').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!currentThreadId) return;
+      window.open(`/threads/${currentThreadId}/export/${btn.dataset.format}`, '_blank');
+    });
+  });
+
+  function ensureAssistantBubble(state) {
+    if (state.bubbleEl) return;
+    removeTypingBubble();
+    const row = document.createElement('div');
+    row.className = 'row assistant';
+    state.bubbleEl = document.createElement('div');
+    state.bubbleEl.className = 'bubble assistant';
+    state.textEl = document.createElement('div');
+    state.textEl.className = 'markdown-body';
+    state.bubbleEl.appendChild(state.textEl);
+    row.appendChild(state.bubbleEl);
+    log.appendChild(row);
+    scrollToBottom();
+  }
+
+  function appendSourcesPanel(bubbleEl, sources) {
+    if (!sources || sources.length === 0 || !bubbleEl) return;
+    const details = document.createElement('details');
+    details.className = 'sources';
+    const summary = document.createElement('summary');
+    summary.textContent = `Sources (${sources.length})`;
+    details.appendChild(summary);
+
+    const stub = document.createElement('div');
+    stub.className = 'stub';
+    sources.forEach((src, i) => {
+      const item = document.createElement('div');
+      item.className = 'stub-item';
+      const tag = document.createElement('span');
+      tag.className = 'stub-tag';
+      tag.textContent = `SRC ${String(i + 1).padStart(2, '0')}`;
+      item.appendChild(tag);
+      item.appendChild(document.createTextNode(src.slice(0, 220) + (src.length > 220 ? '…' : '')));
+      stub.appendChild(item);
+    });
+    details.appendChild(stub);
+    bubbleEl.appendChild(details);
+  }
+
+  async function sendQuestion(question) {
+    addUserBubble(question);
+    input.value = '';
+    input.disabled = true;
+    sendBtn.disabled = true;
+    addTypingBubble();
+
+    const state = { bubbleEl: null, textEl: null, text: '', sources: null };
+
+    try {
+      const res = await fetch('/ask/stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          question,
+          session_id: currentThreadId,
+          knowledge_base: kbSelect.value || null,
+        }),
+      });
+
+      if (res.status === 401) {
+        logout();
+        throw new Error('Session expired — please log in again.');
+      }
+      if (!res.ok || !res.body) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || `Request failed (${res.status})`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const frames = buffer.split('\n\n');
+        buffer = frames.pop();
+
+        for (const frame of frames) {
+          const line = frame.trim();
+          if (!line.startsWith('data:')) continue;
+          const jsonStr = line.slice(5).trim();
+          if (!jsonStr) continue;
+          const event = JSON.parse(jsonStr);
+
+          if (event.type === 'session') {
+            currentThreadId = event.session_id;
+          } else if (event.type === 'sources') {
+            state.sources = event.sources;
+          } else if (event.type === 'token') {
+            ensureAssistantBubble(state);
+            state.text += event.text;
+            state.textEl.innerHTML = marked.parse(state.text);
+            scrollToBottom();
+          } else if (event.type === 'done') {
+            ensureAssistantBubble(state);
+            state.bubbleEl.appendChild(buildMessageActions(state.text, question));
+            appendSourcesPanel(state.bubbleEl, state.sources);
+            await loadThreads();
+            renderThreadList();
+          } else if (event.type === 'error') {
+            removeTypingBubble();
+            addErrorBubble(event.message || 'Something went wrong.');
+          }
+        }
+      }
+    } catch (err) {
+      removeTypingBubble();
+      addErrorBubble(`Couldn't reach the assistant — ${err.message}. Is the server running?`);
+    } finally {
+      input.disabled = false;
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const question = input.value.trim();
+    if (!question) return;
+    sendQuestion(question);
+  });
+
+  function addSystemBubble(text) {
+    const row = document.createElement('div');
+    row.className = 'row system';
+    row.id = 'active-upload-row';
+    row.innerHTML = `<div class="bubble system"></div>`;
+    row.querySelector('.bubble').textContent = text;
+    log.appendChild(row);
+    scrollToBottom();
+    return row;
+  }
+
+  function updateActiveUploadBubble(text) {
+    const row = document.getElementById('active-upload-row');
+    if (row) {
+      row.removeAttribute('id');
+      row.querySelector('.bubble').textContent = text;
+    } else {
+      addSystemBubble(text);
+    }
+    scrollToBottom();
+  }
+
+  uploadBtn.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    fileInput.value = '';
+    if (!file) return;
+
+    const defaultKb = appConfig.default_upload_knowledge_base;
+    const existing = knowledgeBaseNames.length ? `Existing: ${knowledgeBaseNames.join(', ')}` : 'No knowledge bases yet';
+    const kb = prompt(
+      `Which knowledge base should this go into?\n(${existing} — pick one or type a new name)`,
+      defaultKb
+    );
+    if (kb === null) return;
+    const targetKb = kb.trim() || defaultKb;
+
+    addSystemBubble(`📎 Indexing "${file.name}" into "${targetKb}"…`);
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('knowledge_base', targetKb);
+
+    try {
+      const res = await fetch('/upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authToken}` },
+        body: formData,
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || `Upload failed (${res.status})`);
+      }
+      const data = await res.json();
+      updateActiveUploadBubble(`✅ "${data.filename}" indexed — ${data.chunks_added} chunks added. Ask away.`);
+      await loadKnowledgeBases();
+    } catch (err) {
+      updateActiveUploadBubble(`❌ Couldn't index "${file.name}" — ${err.message}`);
+    }
+  });
+
+  newChatBtn.addEventListener('click', () => createThread());
+
+  clearChatBtn.addEventListener('click', async () => {
+    if (!currentThreadId) return;
+    try {
+      await api('/reset', { method: 'POST', body: JSON.stringify({ session_id: currentThreadId }) });
+    } catch (err) {
+      // Non-fatal — the visual log is cleared below regardless.
+    }
+    log.innerHTML = '';
+    greet();
+    input.focus();
+  });
+
+  // ---------- Authentication ----------
+
+  function showAuthOverlay() {
+    authOverlay.style.display = 'flex';
+    shell.style.display = 'none';
+  }
+
+  function showApp() {
+    authOverlay.style.display = 'none';
+    shell.style.display = 'flex';
+  }
+
+  function logout() {
+    authToken = null;
+    localStorage.removeItem('authToken');
+    currentThreadId = null;
+    threadsCache = [];
+    showAuthOverlay();
+  }
+
+  logoutBtn.addEventListener('click', logout);
+
+  authTabs.forEach((tabBtn) => {
+    tabBtn.addEventListener('click', () => {
+      authMode = tabBtn.dataset.mode;
+      authTabs.forEach((t) => t.classList.toggle('active', t === tabBtn));
+      authSubmitBtn.textContent = authMode === 'login' ? 'Log in' : 'Create account';
+      authError.textContent = '';
+    });
+  });
+
+  authForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    authError.textContent = '';
+    const username = authUsername.value.trim();
+    const password = authPassword.value;
+
+    if (!username || !password) return;
+
+    const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
+    authSubmitBtn.disabled = true;
+
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || 'Something went wrong.');
+      }
+
+      authToken = data.access_token;
+      localStorage.setItem('authToken', authToken);
+      authForm.reset();
+      showApp();
+      await initApp();
+    } catch (err) {
+      authError.textContent = err.message;
+    } finally {
+      authSubmitBtn.disabled = false;
+    }
+  });
+
+  async function initApp() {
+    try {
+      await loadKnowledgeBases();
+      await loadThreads();
+      if (threadsCache.length === 0) {
+        await createThread();
+      } else {
+        await selectThread(threadsCache[0].id);
+      }
+    } catch (err) {
+      addErrorBubble(`Couldn't load chats — ${err.message}. Is the server running?`);
+    }
+    input.focus();
+  }
+
+  (async function start() {
+    await loadAppConfig();
+    if (authToken) {
+      showApp();
+      initApp();
+    } else {
+      showAuthOverlay();
+    }
+  })();
+</script>
+</body>
+</html>
